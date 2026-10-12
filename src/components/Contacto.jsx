@@ -3,6 +3,9 @@ import { AtSign, Mail, MapPin, MessageCircle, Send } from 'lucide-react'
 import Reveal from './Reveal.jsx'
 import { CONTACT, DESTINOS, PLANES } from '../data/content.js'
 
+// PEGA AQUÍ TU ACCESS KEY de Web3Forms, entre las comillas
+const ACCESS_KEY = '1a45227d-ccbf-427b-855f-837fd9d7f6c6'
+
 const INITIAL = {
   nombre: '',
   email: '',
@@ -20,6 +23,8 @@ export default function Contacto() {
   const [form, setForm] = useState(INITIAL)
   const [sent, setSent] = useState(false)
   const [waUrl, setWaUrl] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   // Permite que los botones de "Elegir plan" preseleccionen el plan
   useEffect(() => {
@@ -30,24 +35,47 @@ export default function Contacto() {
 
   const update = (e) => setForm((f) => ({ ...f, [e.target.name]: e.target.value }))
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
+    setLoading(true)
+    setError('')
+
     const plan = PLANES.find((p) => p.id === form.plan)?.name || 'Por definir'
     const destino = DESTINOS.find((d) => d.id === form.destino)?.name || 'Por definir'
-    const text = [
-      'Hola Marry Me, quiero cotizar una boda de destino.',
-      `Nombre: ${form.nombre}`,
-      `Correo: ${form.email}`,
-      `Fecha estimada: ${form.fecha || 'Por definir'}`,
-      `Destino: ${destino}`,
-      `Invitados: ${form.invitados || 'Por definir'}`,
-      `Plan: ${plan}`,
-      form.mensaje ? `Mensaje: ${form.mensaje}` : '',
-    ]
-      .filter(Boolean)
-      .join('\n')
+
+    // Mensaje opcional de WhatsApp para la pantalla final
+    const text = `Hola Marry Me, soy ${form.nombre}. Acabo de enviar mi solicitud de cotización (Plan: ${plan}, Destino: ${destino}).`
     setWaUrl(`https://wa.me/${CONTACT.whatsapp}?text=${encodeURIComponent(text)}`)
-    setSent(true)
+
+    try {
+      const res = await fetch('https://api.web3forms.com/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          access_key: ACCESS_KEY,
+          subject: `Nueva solicitud de cotización - ${form.nombre}`,
+          from_name: 'Marry Me (web)',
+          replyto: form.email,
+          Nombres: form.nombre,
+          Correo: form.email,
+          'Fecha estimada': form.fecha || 'Por definir',
+          Destino: destino,
+          Invitados: form.invitados || 'Por definir',
+          Plan: plan,
+          Mensaje: form.mensaje || '-',
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSent(true)
+      } else {
+        setError('No pudimos enviar tu solicitud. Intenta de nuevo en unos minutos.')
+      }
+    } catch {
+      setError('No hay conexión. Revisa tu internet e intenta otra vez.')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -102,11 +130,11 @@ export default function Contacto() {
               <div className="py-10 text-center" role="status">
                 <h3 className="text-3xl font-semibold">¡Gracias, {form.nombre.split(' ')[0] || 'pareja'}!</h3>
                 <p className="mt-3 text-ink-soft">
-                  Tu solicitud está lista. Envíala por WhatsApp con un clic y te responderemos pronto.
+                  Recibimos tu solicitud. Te responderemos pronto al correo que indicaste.
                 </p>
                 <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
                   <a href={waUrl} target="_blank" rel="noopener noreferrer" className="btn-gold">
-                    Enviar por WhatsApp <Send size={16} />
+                    Escribirnos por WhatsApp <Send size={16} />
                   </a>
                   <button
                     type="button"
@@ -114,9 +142,10 @@ export default function Contacto() {
                     onClick={() => {
                       setForm(INITIAL)
                       setSent(false)
+                      setError('')
                     }}
                   >
-                    Editar solicitud
+                    Enviar otra solicitud
                   </button>
                 </div>
               </div>
@@ -171,8 +200,15 @@ export default function Contacto() {
                   Cuéntanos tu idea
                   <textarea name="mensaje" rows={4} value={form.mensaje} onChange={update} className={`${field} mt-1.5 resize-none`} placeholder="Estilo, ritual, ideas especiales..." />
                 </label>
-                <button type="submit" className="btn-gold sm:col-span-2">
-                  Preparar mi solicitud <Send size={16} />
+
+                {error && (
+                  <p className="text-sm text-red-600 sm:col-span-2" role="alert">
+                    {error}
+                  </p>
+                )}
+
+                <button type="submit" disabled={loading} className="btn-gold sm:col-span-2 disabled:opacity-60">
+                  {loading ? 'Enviando...' : 'Enviar solicitud'} <Send size={16} />
                 </button>
               </div>
             )}
