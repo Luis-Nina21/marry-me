@@ -5,7 +5,7 @@
 
 // DATOS DE CONTACTO (reemplazar por los reales antes de publicar)
 export const CONTACT = {
-  whatsapp: '51900000000', // formato internacional, sin + ni espacios
+  whatsapp: '51964975515', // formato internacional, sin + ni espacios
   email: 'reservas@marryme.pe',
   instagram: '@marryme.peru',
   location: 'Arequipa, Perú',
